@@ -1,6 +1,8 @@
 import axios from 'axios'
-import { CONFIG } from '../../config'
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const host = (window as any)['HOST']
 
 export const api = axios.create({
-    baseURL: `${CONFIG.API_HOST}/api`,
+    baseURL: `${host}/api`,
 })
