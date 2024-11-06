@@ -15,7 +15,9 @@ export interface ProfileDialog {
     name: string
     id: string
     text: string
+    time: string
     image: string | null
+    newMessages: number
 }
 
 export type EventType =
@@ -54,4 +56,5 @@ export type DialogMessageAuthor = 'date' | 'sender' | 'receiver'
 export interface DialogMessage {
     author: DialogMessageAuthor
     text: string
+    time?: string
 }

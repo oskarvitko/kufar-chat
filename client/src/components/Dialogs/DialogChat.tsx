@@ -11,15 +11,15 @@ import {
     Stack,
     TextField,
     Typography,
-    TypographyOwnProps,
 } from '@mui/material'
-import { DialogMessage, ProfileDialog } from '../../types'
+import { DialogMessage } from '../../types'
 import { Close, Send } from '@mui/icons-material'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { sendCommand } from '../../api/controll'
+import { DialogType } from './types'
 
 interface DialogChatProps {
-    dialog: ProfileDialog
+    dialog: DialogType
     profileId: string
     setIsChatOpen: (v: boolean) => void
 }
@@ -91,7 +91,12 @@ export const DialogChat = (props: DialogChatProps) => {
 
     return (
         <Dialog open fullScreen>
-            <DialogTitle>{dialog.name}</DialogTitle>
+            <DialogTitle textAlign={'center'}>
+                {dialog.name}
+                <Typography color="textSecondary" fontSize="12px">
+                    {dialog.profile.name}
+                </Typography>
+            </DialogTitle>
             <IconButton
                 disabled={isFirstLoading || isLoading}
                 aria-label="close"
@@ -164,41 +169,78 @@ export const DialogChat = (props: DialogChatProps) => {
                                 spacing={1}
                             >
                                 {messages.map((message, idx) => {
-                                    const alignSelf =
-                                        message.author === 'date'
-                                            ? 'center'
-                                            : message.author === 'sender'
-                                            ? 'flex-start'
-                                            : 'flex-end'
-
-                                    let fontSize = '16px'
-                                    if (message.author === 'date') {
-                                        fontSize = '12px'
+                                    const aligns: Record<
+                                        DialogMessage['author'],
+                                        string
+                                    > = {
+                                        date: 'center',
+                                        receiver: 'flex-end',
+                                        sender: 'flex-start',
                                     }
 
-                                    let color: TypographyOwnProps['color'] =
-                                        'textPrimary'
-                                    if (message.author === 'date') {
-                                        color = 'textSecondary'
+                                    const fontSizes: Record<
+                                        DialogMessage['author'],
+                                        string
+                                    > = {
+                                        date: '12px',
+                                        receiver: '16px',
+                                        sender: '16px',
+                                    }
+
+                                    const elevations: Record<
+                                        DialogMessage['author'],
+                                        number
+                                    > = {
+                                        date: 5,
+                                        receiver: 5,
+                                        sender: 1,
                                     }
 
                                     return (
                                         <Paper
                                             key={idx}
+                                            elevation={
+                                                elevations[message.author]
+                                            }
                                             sx={{
                                                 width: 'auto',
                                                 maxWidth: '60%',
                                                 p: 1,
-                                                alignSelf,
+                                                alignSelf:
+                                                    aligns[message.author],
                                             }}
                                         >
-                                            <Typography
-                                                color={color}
-                                                fontSize={fontSize}
-                                                sx={{ whiteSpace: 'pre' }}
+                                            <Grid2
+                                                container
+                                                spacing={1}
+                                                alignItems={'flex-end'}
                                             >
-                                                {message.text}
-                                            </Typography>
+                                                <Grid2 size="grow">
+                                                    <Typography
+                                                        fontSize={
+                                                            fontSizes[
+                                                                message.author
+                                                            ]
+                                                        }
+                                                        sx={{
+                                                            whiteSpace:
+                                                                'pre-line',
+                                                        }}
+                                                    >
+                                                        {message.text}
+                                                    </Typography>
+                                                </Grid2>
+                                                {message.time && (
+                                                    <Grid2 size="auto">
+                                                        <Typography
+                                                            color="textSecondary"
+                                                            fontSize="0.75em"
+                                                        >
+                                                            {message.time}
+                                                        </Typography>
+                                                    </Grid2>
+                                                )}
+                                            </Grid2>
                                         </Paper>
                                     )
                                 })}
@@ -211,6 +253,7 @@ export const DialogChat = (props: DialogChatProps) => {
                             >
                                 <Grid2 size="grow">
                                     <TextField
+                                        size="small"
                                         value={text}
                                         onChange={(e) => {
                                             setText(e.target.value)

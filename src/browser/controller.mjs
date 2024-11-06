@@ -13,7 +13,11 @@ const DIALOG_ID = (id) => `li:has(div[data-conversation-id="${id}"])`
 const DIALOG_NAME = (id) =>
     `${DIALOG_ID(id)} p[class^="styles_right-side__top-name"]`
 const DIALOG_IMAGE = (id) => `${DIALOG_ID(id)} img[alt="item"]`
+const DIALOG_NEW_MESSAGES = (id) =>
+    `${DIALOG_ID(id)} span[class^="styles_unseen-message-badge"]`
 const DIALOG_PREVIEW = (id) => `${DIALOG_ID(id)} [class^="styles_preview"]`
+const DIALOG_TIME = (id) =>
+    `${DIALOG_ID(id)} span[class^="styles_right-side__top-time"]`
 
 const TOPIC = 'div[class^="styles_ad-block"]'
 const TOPIC_NAME = 'div[class^="styles_ad-block__info"]'
@@ -46,10 +50,10 @@ class BrowserController {
     async start(isFirst = false) {
         await this.page.goto(KUFAR_BASE_URL, options)
 
-        const result = await this.checkForNewMessages(isFirst)
+        const result = await this.loadDialogs(isFirst)
         if (result) {
             this.intervalId = setInterval(() => {
-                this.checkForNewMessages()
+                this.loadDialogs()
             }, 5000)
         }
 
@@ -94,6 +98,7 @@ class BrowserController {
             nodes.map((node, idx) => {
                 let author = 'date'
                 const testId = node.getAttribute('data-testid')
+
                 if (testId === 'mc-message-bubble-sender') {
                     author = 'sender'
                 }
@@ -105,10 +110,25 @@ class BrowserController {
                     node.scrollIntoView()
                 }
 
-                return {
-                    text: node.textContent,
+                const fullText = node.textContent
+                const message = {
                     author,
+                    text: fullText,
                 }
+
+                if (author !== 'date') {
+                    const timeNode = node.querySelector(
+                        '[class*="message__content_info"]',
+                    )
+                    if (timeNode) {
+                        const time = timeNode.textContent
+                        const text = fullText.replace(time, '')
+                        message.text = text
+                        message.time = time
+                    }
+                }
+
+                return message
             }),
         )
 
@@ -135,7 +155,7 @@ class BrowserController {
         return this.scanDialogMessages()
     }
 
-    async checkForNewMessages(isFirst) {
+    async loadDialogs(isFirst) {
         if (isFirst) {
             await new Promise((res) => setTimeout(res, 1000))
         }
@@ -152,20 +172,20 @@ class BrowserController {
         }
 
         try {
-            this.logger.log('Checking for new messages...')
-            await this.page.waitForSelector(NEW_MESSAGE, {
+            this.logger.log('Scanning dialogs...')
+            await this.page.waitForSelector(DIALOG, {
                 ...options,
                 timeout: 1000,
             })
-            this.logger.log('Founded new messages', 'success')
+            this.logger.log('Founded dialogs', 'success')
         } catch (e) {
-            this.logger.log('No new messages')
+            this.logger.log('No dialogs founded')
             this.updateDialogs([])
             return true
         }
         try {
             this.logger.log('Collecting dialogs data...')
-            const dialogsIds = await this.page.$$eval(NEW_MESSAGE, (dialogs) =>
+            const dialogsIds = await this.page.$$eval(DIALOG, (dialogs) =>
                 dialogs.map((dialog) =>
                     dialog.getAttribute('data-conversation-id'),
                 ),
@@ -190,6 +210,24 @@ class BrowserController {
                         image: null,
                     }
 
+                    const timeStr = await this.page.$eval(
+                        DIALOG_TIME(id),
+                        (node) => node.textContent.trim(),
+                    )
+                    if (timeStr.length === 8) {
+                        const [day, month, year] = timeStr.split('.')
+                        dialog.time = new Date([month, day, year].join('.'))
+                    } else {
+                        const [hours, minutes] = timeStr.split(':')
+                        const date = new Date()
+                        date.setHours(Number(hours))
+                        date.setMinutes(Number(minutes))
+                        date.setSeconds(0)
+                        date.setMilliseconds(0)
+
+                        dialog.time = date
+                    }
+
                     try {
                         await this.page.waitForSelector(DIALOG_IMAGE(id), {
                             timeout: 200,
@@ -199,6 +237,20 @@ class BrowserController {
                             (node) => node.getAttribute('src'),
                         )
                         dialog.image = image
+                    } catch (e) {}
+
+                    try {
+                        await this.page.waitForSelector(
+                            DIALOG_NEW_MESSAGES(id),
+                            {
+                                timeout: 200,
+                            },
+                        )
+                        const newMessages = await this.page.$eval(
+                            DIALOG_NEW_MESSAGES(id),
+                            (node) => node.textContent,
+                        )
+                        dialog.newMessages = Number(newMessages)
                     } catch (e) {}
 
                     dialogs.push(dialog)

@@ -1,7 +1,8 @@
-import { useMemo } from 'react'
+import { useDeferredValue, useMemo } from 'react'
 import { Profile } from '../../types'
 import { CircularProgress, Stack, Typography } from '@mui/material'
 import { Dialog } from './Dialog'
+import { DialogType } from './types'
 
 interface DialogsProps {
     profiles: Profile[]
@@ -11,12 +12,24 @@ interface DialogsProps {
 export const Dialogs = (props: DialogsProps) => {
     const { profiles, loading } = props
 
-    const profilesWithDialogs = useMemo(() => {
-        return profiles.filter(
-            (profile) =>
-                profile.dialogs?.length && profile.status === 'connected',
-        )
-    }, [profiles])
+    const deferredProfiles = useDeferredValue(profiles)
+
+    const dialogs: DialogType[] = useMemo(() => {
+        return deferredProfiles
+            .map((p) =>
+                (p.dialogs ?? []).map((dialog) => ({
+                    ...dialog,
+                    profile: { id: p.id, name: p.name },
+                })),
+            )
+            .flat()
+            .sort((dialog1, dialog2) => {
+                const date1 = new Date(dialog1.time)
+                const date2 = new Date(dialog2.time)
+
+                return date2.getTime() - date1.getTime()
+            })
+    }, [deferredProfiles])
 
     if (loading) {
         return (
@@ -27,18 +40,18 @@ export const Dialogs = (props: DialogsProps) => {
         )
     }
 
-    if (!profilesWithDialogs.length) {
+    if (!dialogs.length) {
         return (
             <Typography textAlign={'center'}>
-                Нет новых сообщений среди запущенных профилей
+                Нет диалогов среди запущенных профилей
             </Typography>
         )
     }
 
     return (
         <Stack direction="column" spacing={1}>
-            {profilesWithDialogs.map((profile) => (
-                <Dialog key={profile.id} profile={profile} />
+            {dialogs.map((dialog) => (
+                <Dialog key={dialog.id} dialog={dialog} />
             ))}
         </Stack>
     )

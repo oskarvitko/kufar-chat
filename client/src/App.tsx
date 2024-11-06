@@ -164,7 +164,7 @@ const TabPanel = (props: TabPanelProps) => {
     }
 
     return (
-        <Stack direction="column" spacing={2} p={2} style={styles}>
+        <Stack direction="column" spacing={2} p={1} style={styles}>
             {props.children}
         </Stack>
     )
