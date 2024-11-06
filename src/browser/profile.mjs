@@ -8,10 +8,11 @@ import BrowserController, { KUFAR_ACCOUNT_URL } from './controller.mjs'
 import { createEmitter, EmitTypes } from '../server/socket.mjs'
 import { USER_NAME } from '../../user.mjs'
 
-const BrowserProfileStatus = {
+export const BrowserProfileStatus = {
     STOPPED: 'stopped',
     CONNECTED: 'connected',
     CONNECTING: 'connecting',
+    UNAUTHORIZED: 'unauthorized',
 }
 
 class BrowserProfile {
@@ -28,12 +29,7 @@ class BrowserProfile {
 
         this.tmpFolderPath = join('tmp', this.id)
 
-        const params = [
-            '--no-sandbox',
-            '--disable-notifications',
-            '--disable-background-timer-throttling',
-            '--disable-renderer-backgrounding',
-        ]
+        const params = ['--no-sandbox', '--disable-notifications']
 
         if (process.env.NODE_ENV === 'production') {
             params.push('--headless')
@@ -62,15 +58,11 @@ class BrowserProfile {
         this.logger.log(`--- ${this.id} ---`, 'warn')
         this.logger.log('Launching...')
         this.#checkFolder(this.tmpFolderPath)
-        this.#changeStatus(BrowserProfileStatus.CONNECTING)
+        this.changeStatus(BrowserProfileStatus.CONNECTING)
 
         try {
             const cookies = await this.gologin.getCookies(this.id)
             const result = await this.gologin.start()
-
-            if (result.status === 'success') {
-                this.logger.log('Launched')
-            }
 
             const browser = await connect({
                 browserWSEndpoint: result.wsUrl,
@@ -78,7 +70,15 @@ class BrowserProfile {
             })
 
             this.browser = browser
-            const [page] = await browser.pages()
+            const page = await browser.newPage()
+            const pages = await browser.pages()
+            await Promise.all(
+                pages.map(async (page, idx) => {
+                    if (idx !== pages.length - 1) {
+                        return page.close()
+                    }
+                }),
+            )
             await page.authenticate({
                 username: this.proxy.username,
                 password: this.proxy.password,
@@ -87,22 +87,23 @@ class BrowserProfile {
             await page.setViewport({ width: 1366, height: 768 })
 
             this.page = page
-            this.controller = new BrowserController(
-                page,
-                this.logger,
-                this.emitter,
-            )
+            this.controller = new BrowserController(this, page)
 
             browser.on('disconnected', () => {
-                this.#changeStatus(BrowserProfileStatus.STOPPED)
+                if (this.status !== BrowserProfileStatus.UNAUTHORIZED) {
+                    this.changeStatus(BrowserProfileStatus.STOPPED)
+                }
                 this.controller.stopInterval()
             })
 
-            await this.controller.start()
-            this.#changeStatus(BrowserProfileStatus.CONNECTED)
+            const startResult = await this.controller.start(true)
+            if (result.status === 'success' && startResult) {
+                this.logger.log('Launched')
+                this.changeStatus(BrowserProfileStatus.CONNECTED)
+            }
         } catch (e) {
             this.logger.error(e)
-            await this.#changeStatus(BrowserProfileStatus.STOPPED)
+            await this.changeStatus(BrowserProfileStatus.STOPPED)
         }
     }
 
@@ -126,7 +127,10 @@ class BrowserProfile {
     }
 
     isStopped() {
-        return this.status === BrowserProfileStatus.STOPPED
+        return (
+            this.status === BrowserProfileStatus.STOPPED ||
+            this.status === BrowserProfileStatus.UNAUTHORIZED
+        )
     }
 
     get() {
@@ -138,7 +142,7 @@ class BrowserProfile {
         }
     }
 
-    #changeStatus(status) {
+    changeStatus(status) {
         this.status = status
         this.emitter.emit(EmitTypes.PROFILE_STATUS_CHANGED, status)
     }

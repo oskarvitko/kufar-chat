@@ -2,7 +2,10 @@ import { launchAll } from '../../api/profiles'
 import {
     Button,
     ButtonGroup,
+    Checkbox,
     CircularProgress,
+    FormControlLabel,
+    FormGroup,
     Grid2,
     IconButton,
     InputAdornment,
@@ -11,7 +14,7 @@ import {
 } from '@mui/material'
 import { Profile } from './Profile'
 import { Refresh, Search } from '@mui/icons-material'
-import { Profile as ProfileType } from '../../types'
+import { ProfileStatus, Profile as ProfileType } from '../../types'
 import { useMemo, useState } from 'react'
 
 interface ProfilesListProps {
@@ -22,15 +25,27 @@ interface ProfilesListProps {
 
 export const ProfilesList = (props: ProfilesListProps) => {
     const [filter, setFilter] = useState('')
+    const [enabledStatuses, setEnabledStatuses] = useState<
+        Record<ProfileStatus, boolean>
+    >({
+        connected: true,
+        connecting: true,
+        unauthorized: true,
+        stopped: true,
+    })
     const { profiles, loading, fetchProfiles } = props
 
     const filteredProfiles = useMemo(() => {
-        if (!filter) {
-            return profiles
-        }
+        return profiles.filter(
+            (profile) =>
+                profile.name.includes(filter) &&
+                enabledStatuses[profile.status],
+        )
+    }, [profiles, filter, enabledStatuses])
 
-        return profiles.filter((profile) => profile.name.includes(filter))
-    }, [profiles, filter])
+    const handleChangeStatusFilter =
+        (status: ProfileStatus) => (value: boolean) =>
+            setEnabledStatuses((prev) => ({ ...prev, [status]: value }))
 
     if (loading) {
         return (
@@ -56,6 +71,47 @@ export const ProfilesList = (props: ProfilesListProps) => {
                     <Refresh />
                 </IconButton>
             </ButtonGroup>
+            <FormGroup sx={{ flexDirection: 'row' }}>
+                <FormControlLabel
+                    control={
+                        <Checkbox
+                            checked={enabledStatuses.connected}
+                            onChange={(e) =>
+                                handleChangeStatusFilter('connected')(
+                                    e.target.checked,
+                                )
+                            }
+                        />
+                    }
+                    label="Включенные"
+                />
+                <FormControlLabel
+                    control={
+                        <Checkbox
+                            checked={enabledStatuses.stopped}
+                            onChange={(e) => {
+                                handleChangeStatusFilter('stopped')(
+                                    e.target.checked,
+                                )
+                            }}
+                        />
+                    }
+                    label="Остановленные"
+                />
+                <FormControlLabel
+                    control={
+                        <Checkbox
+                            checked={enabledStatuses.unauthorized}
+                            onChange={(e) => {
+                                handleChangeStatusFilter('unauthorized')(
+                                    e.target.checked,
+                                )
+                            }}
+                        />
+                    }
+                    label="Не авторизованные"
+                />
+            </FormGroup>
             <TextField
                 sx={{ maxWidth: 500 }}
                 size="small"

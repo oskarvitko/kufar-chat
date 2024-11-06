@@ -11,7 +11,7 @@ import {
     ProfileStatus as ProfileStatusType,
 } from '../../types'
 import { memo, useState } from 'react'
-import { Pause, PlayArrow } from '@mui/icons-material'
+import { Pause, PlayArrow, Refresh } from '@mui/icons-material'
 import { launchProfile, shutdownProfile } from '../../api/profiles'
 
 interface ProfileProps {
@@ -46,6 +46,16 @@ export const Profile = memo((props: ProfileProps) => {
                         onClick={() => launchProfile(profile.id)}
                     >
                         <PlayArrow />
+                    </IconButton>
+                )
+            case 'unauthorized':
+                return (
+                    <IconButton
+                        size="small"
+                        color="primary"
+                        onClick={() => launchProfile(profile.id)}
+                    >
+                        <Refresh />
                     </IconButton>
                 )
             case 'connected':
@@ -110,6 +120,7 @@ const ProfileStatus = memo((props: ProfileStatusProps) => {
         connected: '#04c004',
         connecting: 'orange',
         stopped: '#ce0000',
+        unauthorized: 'blue',
     }
 
     return (

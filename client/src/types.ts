@@ -1,4 +1,8 @@
-export type ProfileStatus = 'stopped' | 'connected' | 'connecting'
+export type ProfileStatus =
+    | 'stopped'
+    | 'connected'
+    | 'connecting'
+    | 'unauthorized'
 
 export interface Profile {
     id: string

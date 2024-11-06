@@ -1,4 +1,5 @@
 import { EmitTypes } from '../server/socket.mjs'
+import { BrowserProfileStatus } from './profile.mjs'
 
 export const KUFAR_BASE_URL = 'https://www.kufar.by/account/messaging/'
 export const KUFAR_ACCOUNT_URL =
@@ -22,29 +23,42 @@ const MESSAGES = 'section[data-testid="messages-section"] > *'
 const INPUT = 'textarea[name="message_textarea"]'
 const SEND_BUTTON = 'label[class^="styles_send-button"]'
 
+const WAITUNTIL = 'domcontentloaded'
+const TIMEOUT = 120_000
+
+const options = {
+    timeout: TIMEOUT,
+    waitUntil: WAITUNTIL,
+}
+
 class BrowserController {
     page
     intervalId
     dialogs = []
 
-    constructor(page, logger, emitter) {
+    constructor(profile, page) {
+        this.profile = profile
         this.page = page
-        this.logger = logger
-        this.emitter = emitter
+        this.logger = profile.logger
+        this.emitter = profile.emitter
     }
 
-    async start() {
-        await this.page.goto(KUFAR_BASE_URL, { timeout: 120_000 })
+    async start(isFirst = false) {
+        await this.page.goto(KUFAR_BASE_URL, options)
 
-        await this.checkForNewMessages()
-        this.intervalId = setInterval(() => {
-            this.checkForNewMessages()
-        }, 5000)
+        const result = await this.checkForNewMessages(isFirst)
+        if (result) {
+            this.intervalId = setInterval(() => {
+                this.checkForNewMessages()
+            }, 5000)
+        }
+
+        return result
     }
 
     async openDialog(dialogId) {
         await this.stopInterval()
-        await this.page.goto(KUFAR_BASE_URL, { timeout: 120_000 })
+        await this.page.goto(KUFAR_BASE_URL, options)
 
         await this.page.waitForSelector(DIALOG_ID(dialogId), {
             timeout: 120_000,
@@ -55,7 +69,7 @@ class BrowserController {
     }
 
     async scanDialogMessages() {
-        await this.page.waitForSelector(MESSAGES, { timeout: 120_000 })
+        await this.page.waitForSelector(MESSAGES, options)
 
         const getTopic = async () => {
             try {
@@ -121,9 +135,36 @@ class BrowserController {
         return this.scanDialogMessages()
     }
 
-    async checkForNewMessages() {
+    async checkForNewMessages(isFirst) {
+        if (isFirst) {
+            await new Promise((res) => setTimeout(res, 1000))
+        }
+
+        const url = await this.page.url()
+
+        if (!url.includes(KUFAR_BASE_URL)) {
+            this.logger.error('Unauthorized')
+            this.stopInterval()
+            await this.profile.stop()
+            await this.profile.changeStatus(BrowserProfileStatus.UNAUTHORIZED)
+
+            return false
+        }
+
         try {
-            await this.page.waitForSelector(NEW_MESSAGE)
+            this.logger.log('Checking for new messages...')
+            await this.page.waitForSelector(NEW_MESSAGE, {
+                ...options,
+                timeout: 1000,
+            })
+            this.logger.log('Founded new messages', 'success')
+        } catch (e) {
+            this.logger.log('No new messages')
+            this.updateDialogs([])
+            return true
+        }
+        try {
+            this.logger.log('Collecting dialogs data...')
             const dialogsIds = await this.page.$$eval(NEW_MESSAGE, (dialogs) =>
                 dialogs.map((dialog) =>
                     dialog.getAttribute('data-conversation-id'),
@@ -162,11 +203,13 @@ class BrowserController {
 
                     dialogs.push(dialog)
                 }
-
+                this.logger.log('Dialogs data collected', 'success')
                 this.updateDialogs(dialogs)
+                return true
             }
         } catch (e) {
             this.logger.error(e)
+            return false
         }
     }
 
