@@ -5,7 +5,7 @@
   "scripts": {
     "start:dev": "nodemon index.mjs"
   },
-  "author": "",
+  "author": "Oskar",
   "license": "ISC",
   "description": "",
   "dependencies": {
