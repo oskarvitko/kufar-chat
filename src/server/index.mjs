@@ -25,7 +25,7 @@ const startServer = () => {
     server.listen(config.PORT, async () => {
         app.logger.log(`Server started on port ${config.PORT}`, 'success')
         await browserApi.connect()
-        browserApi.launchProfiles(1)
+        // browserApi.launchProfiles(1)
     })
 }
 
