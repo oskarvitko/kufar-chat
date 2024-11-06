@@ -1,4 +1,4 @@
-import fs from 'fs'
+// import fs from 'fs'
 
 export function log(message, prefix, severity, type = 'log') {
     const colors = {
@@ -24,14 +24,14 @@ export function log(message, prefix, severity, type = 'log') {
 
     console.log(`\x1b[${color}m${text}\x1b[0m`)
 
-    if (process.env.NODE_ENV === 'production') {
-        const date = new Date().toLocaleDateString('ru')
-        const path = `logs/${date}.txt`
+    // if (process.env.NODE_ENV === 'production') {
+    //     const date = new Date().toLocaleDateString('ru')
+    //     const path = `logs/${date}.txt`
 
-        fs.appendFile(path, text + '\n', (error) => {
-            if (error) console.log(error)
-        })
-    }
+    //     fs.appendFile(path, text + '\n', (error) => {
+    //         if (error) console.log(error)
+    //     })
+    // }
 }
 
 export function createLogger(prefix) {
