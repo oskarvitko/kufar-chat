@@ -109,7 +109,6 @@ class BrowserProfile {
 
     async stop() {
         this.logger.log('Stopping...')
-        await this.gologin.stop()
         await this.browser.close()
         this.logger.log('Stopped', 'success')
     }
