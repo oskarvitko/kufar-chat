@@ -34,7 +34,7 @@ class BrowserController {
     }
 
     async start() {
-        await this.page.goto(KUFAR_BASE_URL, { timeout: 60000 })
+        await this.page.goto(KUFAR_BASE_URL, { timeout: 120_000 })
 
         await this.checkForNewMessages()
         this.intervalId = setInterval(() => {
@@ -44,16 +44,18 @@ class BrowserController {
 
     async openDialog(dialogId) {
         await this.stopInterval()
-        await this.page.goto(KUFAR_BASE_URL)
+        await this.page.goto(KUFAR_BASE_URL, { timeout: 120_000 })
 
-        await this.page.waitForSelector(DIALOG_ID(dialogId))
+        await this.page.waitForSelector(DIALOG_ID(dialogId), {
+            timeout: 120_000,
+        })
         await this.page.click(DIALOG_ID(dialogId))
 
         return this.scanDialogMessages()
     }
 
     async scanDialogMessages() {
-        await this.page.waitForSelector(MESSAGES)
+        await this.page.waitForSelector(MESSAGES, { timeout: 120_000 })
 
         const getTopic = async () => {
             try {
