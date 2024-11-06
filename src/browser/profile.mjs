@@ -6,6 +6,7 @@ import { existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
 import BrowserController, { KUFAR_ACCOUNT_URL } from './controller.mjs'
 import { createEmitter, EmitTypes } from '../server/socket.mjs'
+import { USER_NAME } from '../../user.mjs'
 
 const BrowserProfileStatus = {
     STOPPED: 'stopped',
@@ -44,7 +45,7 @@ class BrowserProfile {
             executablePath: join(
                 'C:',
                 'Users',
-                'Oskar',
+                USER_NAME,
                 '.gologin',
                 'browser',
                 'orbita-browser-129',
