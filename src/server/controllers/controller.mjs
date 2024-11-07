@@ -24,8 +24,9 @@ export const commands = [
     },
     {
         name: 'send-message',
-        exec: (controller, { message }) => controller.sendMessage(message),
-        params: ['message'],
+        exec: (controller, { message, dialogId }) =>
+            controller.sendMessage(message, dialogId),
+        params: ['message', 'dialogId'],
     },
 ]
 
@@ -45,7 +46,7 @@ controllerRouter.post(
                 profile.getController(),
                 commandParams,
             )
-            return res.status(200).json(result ?? true)
+            return res.status(200).json(result === undefined ? true : result)
         } catch (e) {
             profile.logger.error(e)
             return res.status(500).json({ message: 'Command error', error: e })

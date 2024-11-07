@@ -4,7 +4,10 @@ import config from '../config/server.mjs'
 import { connect } from 'puppeteer-core'
 import { existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
-import BrowserController, { KUFAR_ACCOUNT_URL } from './controller.mjs'
+import BrowserController, {
+    BrowserControllerUsageStatus,
+    KUFAR_ACCOUNT_URL,
+} from './controller.mjs'
 import { createEmitter, EmitTypes } from '../server/socket.mjs'
 import { USER_NAME } from '../../user.mjs'
 
@@ -89,12 +92,7 @@ class BrowserProfile {
             this.page = page
             this.controller = new BrowserController(this, page)
 
-            browser.on('disconnected', () => {
-                if (this.status !== BrowserProfileStatus.UNAUTHORIZED) {
-                    this.changeStatus(BrowserProfileStatus.STOPPED)
-                }
-                this.controller.stopInterval()
-            })
+            browser.on('disconnected', this.onStop.bind(this))
 
             const startResult = await this.controller.start(true)
             if (result.status === 'success' && startResult) {
@@ -107,9 +105,18 @@ class BrowserProfile {
         }
     }
 
+    onStop() {
+        if (this.status !== BrowserProfileStatus.UNAUTHORIZED) {
+            this.changeStatus(BrowserProfileStatus.STOPPED)
+        }
+        this.controller.updateDialogs([])
+        this.controller.stopInterval()
+    }
+
     async stop() {
         this.logger.log('Stopping...')
         await this.browser.close()
+        this.onStop()
         this.logger.log('Stopped', 'success')
     }
 
@@ -137,6 +144,9 @@ class BrowserProfile {
             id: this.id,
             name: this.name,
             status: this.status,
+            usageStatus:
+                this.controller?.usageStatus ??
+                BrowserControllerUsageStatus.SCANNING,
             dialogs: this.controller?.dialogs ?? [],
         }
     }

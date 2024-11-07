@@ -1,5 +1,6 @@
 import {
     Avatar,
+    Box,
     CircularProgress,
     Dialog,
     DialogContent,
@@ -17,6 +18,7 @@ import { Close, Send } from '@mui/icons-material'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { sendCommand } from '../../api/controll'
 import { DialogType } from './types'
+import { host } from '../../api'
 
 interface DialogChatProps {
     dialog: DialogType
@@ -56,12 +58,16 @@ export const DialogChat = (props: DialogChatProps) => {
             dialogId: dialog.id,
             profileId,
         }).then((response) => {
+            if (response.data === null) {
+                return setIsChatOpen(false)
+            }
+
             const { messages, topic } = response.data
             setMessages(messages)
             setTopic(topic)
             setLoadingState('idle')
         })
-    }, [dialog.id, profileId])
+    }, [dialog.id, profileId, setIsChatOpen])
 
     useEffect(() => {
         openDialogRequest()
@@ -79,6 +85,7 @@ export const DialogChat = (props: DialogChatProps) => {
             sendCommand({
                 command: 'send-message',
                 message: text,
+                dialogId: dialog.id,
                 profileId,
             }).then((response) => {
                 const { messages } = response.data
@@ -130,6 +137,7 @@ export const DialogChat = (props: DialogChatProps) => {
                                         left: 0,
                                         bottom: 0,
                                         bgcolor: 'rgba(0,0,0, 25%)',
+                                        zIndex: 200,
                                     }}
                                 >
                                     <CircularProgress />
@@ -196,6 +204,35 @@ export const DialogChat = (props: DialogChatProps) => {
                                         sender: 1,
                                     }
 
+                                    const renderContent = () => {
+                                        switch (message.type) {
+                                            case 'text':
+                                                return (
+                                                    <Typography
+                                                        fontSize={
+                                                            fontSizes[
+                                                                message.author
+                                                            ]
+                                                        }
+                                                        sx={{
+                                                            whiteSpace:
+                                                                'pre-line',
+                                                        }}
+                                                    >
+                                                        {message.text}
+                                                    </Typography>
+                                                )
+                                            case 'image':
+                                                return (
+                                                    <Box
+                                                        sx={{ width: '100%' }}
+                                                        component={'img'}
+                                                        src={`${host}/images/${message.image}`}
+                                                    />
+                                                )
+                                        }
+                                    }
+
                                     return (
                                         <Paper
                                             key={idx}
@@ -216,19 +253,7 @@ export const DialogChat = (props: DialogChatProps) => {
                                                 alignItems={'flex-end'}
                                             >
                                                 <Grid2 size="grow">
-                                                    <Typography
-                                                        fontSize={
-                                                            fontSizes[
-                                                                message.author
-                                                            ]
-                                                        }
-                                                        sx={{
-                                                            whiteSpace:
-                                                                'pre-line',
-                                                        }}
-                                                    >
-                                                        {message.text}
-                                                    </Typography>
+                                                    {renderContent()}
                                                 </Grid2>
                                                 {message.time && (
                                                     <Grid2 size="auto">

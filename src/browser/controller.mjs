@@ -1,5 +1,7 @@
 import { EmitTypes } from '../server/socket.mjs'
 import { BrowserProfileStatus } from './profile.mjs'
+import { existsSync, writeFile } from 'fs'
+import { join } from 'path'
 
 export const KUFAR_BASE_URL = 'https://www.kufar.by/account/messaging/'
 export const KUFAR_ACCOUNT_URL =
@@ -24,6 +26,7 @@ const TOPIC_NAME = 'div[class^="styles_ad-block__info"]'
 const TOPIC_IMAGE = 'div[class^="styles_ad-block__img-container"] img'
 
 const MESSAGES = 'section[data-testid="messages-section"] > *'
+const IMAGE_MESSAGES = `${MESSAGES}:has([class^="styles_attachments-images"])`
 const INPUT = 'textarea[name="message_textarea"]'
 const SEND_BUTTON = 'label[class^="styles_send-button"]'
 
@@ -32,13 +35,19 @@ const TIMEOUT = 120_000
 
 const options = {
     timeout: TIMEOUT,
-    waitUntil: WAITUNTIL,
+}
+
+export const BrowserControllerUsageStatus = {
+    DIALOG_OPENED: 'dialog-opened',
+    SCANNING: 'scanning',
 }
 
 class BrowserController {
     page
     intervalId
+    dialogOpenedTimeoutId
     dialogs = []
+    usageStatus = BrowserControllerUsageStatus.SCANNING
 
     constructor(profile, page) {
         this.profile = profile
@@ -54,25 +63,36 @@ class BrowserController {
         if (result) {
             this.intervalId = setInterval(() => {
                 this.loadDialogs()
-            }, 5000)
+            }, 10_000)
         }
 
         return result
     }
 
     async openDialog(dialogId) {
+        if (this.usageStatus === BrowserControllerUsageStatus.DIALOG_OPENED) {
+            return null
+        }
+
         await this.stopInterval()
         await this.page.goto(KUFAR_BASE_URL, options)
 
         await this.page.waitForSelector(DIALOG_ID(dialogId), {
             timeout: 120_000,
         })
+
+        this.changeUsageStatus(BrowserControllerUsageStatus.DIALOG_OPENED)
+        this.dialogOpenedTimeoutId = setTimeout(
+            () => this.closeDialog(),
+            180_000,
+        )
+
         await this.page.click(DIALOG_ID(dialogId))
 
-        return this.scanDialogMessages()
+        return this.scanDialogMessages(dialogId)
     }
 
-    async scanDialogMessages() {
+    async scanDialogMessages(dialogId) {
         await this.page.waitForSelector(MESSAGES, options)
 
         const getTopic = async () => {
@@ -94,6 +114,26 @@ class BrowserController {
 
         const topic = await getTopic()
 
+        try {
+            await this.page.waitForSelector(IMAGE_MESSAGES, { timeout: 200 })
+            const imageMessages = await this.page.$$eval(
+                IMAGE_MESSAGES,
+                (nodes) => {
+                    return nodes.map((node, idx) => {
+                        node.setAttribute('data-image-message', idx)
+                        return idx
+                    })
+                },
+            )
+            await Promise.all(
+                imageMessages.map(async (idx) =>
+                    this.page.waitForSelector(
+                        `[data-image-message="${idx}"] img[alt="file-message"]`,
+                    ),
+                ),
+            )
+        } catch (e) {}
+
         const messages = await this.page.$$eval(MESSAGES, (nodes) =>
             nodes.map((node, idx) => {
                 let author = 'date'
@@ -114,6 +154,7 @@ class BrowserController {
                 const message = {
                     author,
                     text: fullText,
+                    type: 'text',
                 }
 
                 if (author !== 'date') {
@@ -128,18 +169,68 @@ class BrowserController {
                     }
                 }
 
+                if (message.text === '') {
+                    const img = node.querySelector('img[alt="file-message"]')
+                    if (img) {
+                        message.type = 'image'
+                        message.image = img.getAttribute('src')
+                    }
+                }
+
                 return message
             }),
         )
+
+        for (let i = 0; i < messages.length; i++) {
+            const message = messages[i]
+            if (message.type === 'image') {
+                const imageBuffer = await this.page.evaluate(
+                    async (blobUrl) => {
+                        const response = await fetch(blobUrl)
+                        const buffer = await response.arrayBuffer()
+                        return Array.from(new Uint8Array(buffer))
+                    },
+                    message.image,
+                )
+
+                const imageId = `${[this.profile.id, dialogId, i].join(
+                    '_',
+                )}.png`
+                const result = existsSync(join('images', imageId))
+                if (!result) {
+                    try {
+                        await new Promise((res, rej) => {
+                            writeFile(
+                                join('images', imageId),
+                                Buffer.from(imageBuffer),
+                                (error) => {
+                                    if (error) {
+                                        rej(error)
+                                    } else {
+                                        res()
+                                    }
+                                },
+                            )
+                        })
+                    } catch (e) {
+                        this.logger.error(e)
+                    }
+                }
+
+                message.image = imageId
+            }
+        }
 
         return { messages, topic }
     }
 
     async closeDialog() {
+        clearTimeout(this.dialogOpenedTimeoutId)
         await this.start()
+        this.changeUsageStatus(BrowserControllerUsageStatus.SCANNING)
     }
 
-    async sendMessage(message) {
+    async sendMessage(message, dialogId) {
         await this.page.waitForSelector(INPUT)
         await this.page.waitForSelector(SEND_BUTTON)
         await this.page.click(INPUT)
@@ -152,7 +243,7 @@ class BrowserController {
         }
 
         await this.page.click(SEND_BUTTON)
-        return this.scanDialogMessages()
+        return this.scanDialogMessages(dialogId)
     }
 
     async loadDialogs(isFirst) {
@@ -160,9 +251,10 @@ class BrowserController {
             await new Promise((res) => setTimeout(res, 1000))
         }
 
-        const url = await this.page.url()
+        const urlStr = await this.page.url()
+        const url = new URL(urlStr)
 
-        if (!url.includes(KUFAR_BASE_URL)) {
+        if (!url.pathname.includes('account/messaging')) {
             this.logger.error('Unauthorized')
             this.stopInterval()
             await this.profile.stop()
@@ -175,7 +267,7 @@ class BrowserController {
             this.logger.log('Scanning dialogs...')
             await this.page.waitForSelector(DIALOG, {
                 ...options,
-                timeout: 1000,
+                timeout: 2000,
             })
             this.logger.log('Founded dialogs', 'success')
         } catch (e) {
@@ -263,6 +355,11 @@ class BrowserController {
             this.logger.error(e)
             return false
         }
+    }
+
+    changeUsageStatus(status) {
+        this.usageStatus = status
+        this.emitter.emit(EmitTypes.USAGE_STATUS_CHANGED, status)
     }
 
     updateDialogs(dialogs) {

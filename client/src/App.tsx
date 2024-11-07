@@ -76,6 +76,20 @@ function App() {
                     )
 
                     break
+                case 'USAGE_STATUS_CHANGED':
+                    setProfiles((prev) =>
+                        prev.map((profile) => {
+                            if (profile.id === event.meta.profileId) {
+                                return {
+                                    ...profile,
+                                    usageStatus: event.data,
+                                }
+                            }
+
+                            return profile
+                        }),
+                    )
+                    break
                 case 'DIALOGS_UPDATED':
                     setProfiles((prev) =>
                         prev.map((profile) => {

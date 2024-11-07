@@ -1,4 +1,6 @@
 import { Router } from 'express'
+import { existsSync } from 'fs'
+import { join } from 'path'
 import browserApi from '../../browser/browser-api.mjs'
 import {
     getProfileByIdFromParam,
@@ -48,3 +50,15 @@ profilesRouter.post('/shutdown', getProfileByIdFromBody, async (req, res) => {
 
     return res.status(200).json(true)
 })
+
+// //Image
+// profilesRouter.get('/image/:id', async (req, res) => {
+//     const { id } = req.params
+//     const imagePath = join('images', id)
+
+//     if (existsSync(imagePath)) {
+//         return res.sendFile(imagePath)
+//     }
+
+//     return res.status(404).send()
+// })

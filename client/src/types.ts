@@ -4,10 +4,13 @@ export type ProfileStatus =
     | 'connecting'
     | 'unauthorized'
 
+export type ProfileUsageStatus = 'scanning' | 'dialog-opened'
+
 export interface Profile {
     id: string
     name: string
     status: ProfileStatus
+    usageStatus: ProfileUsageStatus
     dialogs?: ProfileDialog[]
 }
 
@@ -24,6 +27,7 @@ export type EventType =
     | 'PROFILE_STATUS_CHANGED'
     | 'DIALOGS_UPDATED'
     | 'PROFILES_LOADED'
+    | 'USAGE_STATUS_CHANGED'
 
 interface BaseEvent {
     type: EventType
@@ -46,15 +50,31 @@ export interface ProfilesLoadedEvent extends BaseEvent {
     type: 'PROFILES_LOADED'
 }
 
+export interface ProfileUsageStatusChangedEvent extends BaseEvent {
+    type: 'USAGE_STATUS_CHANGED'
+    data: ProfileUsageStatus
+}
+
 export type Event =
     | ProfileStatusChangedEvent
     | DialogsUpdatedEvent
     | ProfilesLoadedEvent
+    | ProfileUsageStatusChangedEvent
 
 export type DialogMessageAuthor = 'date' | 'sender' | 'receiver'
 
-export interface DialogMessage {
+interface DialogMessageBase {
     author: DialogMessageAuthor
-    text: string
     time?: string
+    type: 'text' | 'image'
 }
+export interface DialogMessageText extends DialogMessageBase {
+    type: 'text'
+    text: string
+}
+
+export interface DialogMessageImage extends DialogMessageBase {
+    type: 'image'
+    image: string
+}
+export type DialogMessage = DialogMessageText | DialogMessageImage

@@ -14,6 +14,7 @@ app.logger = createLogger('SERVER')
 
 app.use(json())
 app.use(express.static('client/dist'))
+app.use('/images', express.static('images'))
 app.use(cors({ origin: '*' }))
 app.use('/api', apiRouter)
 
@@ -25,7 +26,6 @@ const startServer = () => {
     server.listen(config.PORT, async () => {
         app.logger.log(`Server started on port ${config.PORT}`, 'success')
         await browserApi.connect()
-        // browserApi.launchProfiles(1)
     })
 }
 

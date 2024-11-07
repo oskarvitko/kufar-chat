@@ -19,6 +19,7 @@ export interface CloseDialogCommand extends BaseCommand {
 export interface SendMessageCommand extends BaseCommand {
     command: 'send-message'
     message: string
+    dialogId: string
 }
 
 export type Command =
