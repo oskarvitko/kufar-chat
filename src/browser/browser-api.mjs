@@ -78,16 +78,31 @@ class BrowserApi {
 
     async #loadProfiles() {
         this.logger.log('Getting profiles...')
-        try {
-            const response = await this.api.get('browser/v2')
+        const fetchPage = async (page) => {
+            try {
+                const response = await this.api.get(`browser/v2?page=${page}`)
 
-            if (response.status === 200) {
-                this.logger.log('Profiles loaded')
-                return response.data.profiles
+                if (response.status === 200) {
+                    this.logger.log('Profiles loaded')
+                    return response.data
+                }
+            } catch (e) {
+                this.logger.error(e.message, 'error')
             }
-        } catch (e) {
-            this.logger.error(e.message, 'error')
         }
+
+        const PROFILES_PER_PAGE = 30
+        const profiles = []
+        let page = 0
+        let totalProfiles = 0
+        do {
+            page += 1
+            const data = await fetchPage(page)
+            totalProfiles = data.allProfilesCount
+            profiles.push(data.profiles)
+        } while (totalProfiles > page * PROFILES_PER_PAGE)
+
+        return profiles.flat()
     }
 }
 

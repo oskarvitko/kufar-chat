@@ -35,6 +35,7 @@ const TIMEOUT = 120_000
 
 const options = {
     timeout: TIMEOUT,
+    waitUntil: WAITUNTIL,
 }
 
 export const BrowserControllerUsageStatus = {
