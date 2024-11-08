@@ -113,9 +113,12 @@ export const Profile = memo((props: ProfileProps) => {
 
 interface ProfileStatusProps {
     status: ProfileStatusType
+    size?: number
 }
 
-const ProfileStatus = memo((props: ProfileStatusProps) => {
+export const ProfileStatus = memo((props: ProfileStatusProps) => {
+    const { status, size = 8 } = props
+
     const colors: Record<ProfileStatusType, string> = {
         connected: '#04c004',
         connecting: 'orange',
@@ -125,11 +128,28 @@ const ProfileStatus = memo((props: ProfileStatusProps) => {
 
     return (
         <Box
-            width={8}
-            height={8}
+            width={size}
+            height={size}
             component={'div'}
-            bgcolor={colors[props.status]}
+            bgcolor={colors[status]}
             borderRadius={'50%'}
+            sx={{
+                animation:
+                    status === 'connecting'
+                        ? 'fading 1s ease infinite'
+                        : 'none',
+                '@keyframes fading': {
+                    '0%': {
+                        opacity: 1,
+                    },
+                    '50%': {
+                        opacity: 0.5,
+                    },
+                    '100%': {
+                        opacity: 1,
+                    },
+                },
+            }}
         />
     )
 })

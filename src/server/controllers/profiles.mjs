@@ -1,6 +1,4 @@
 import { Router } from 'express'
-import { existsSync } from 'fs'
-import { join } from 'path'
 import browserApi from '../../browser/browser-api.mjs'
 import {
     getProfileByIdFromParam,
@@ -33,6 +31,20 @@ profilesRouter.post('/launch-all', async (req, res) => {
     return res.status(200).json(true)
 })
 
+// Shutdown All Profiles
+profilesRouter.post('/shutdown-all', async (req, res) => {
+    browserApi.stopProfiles()
+
+    return res.status(200).json(true)
+})
+
+// Update Profiles
+profilesRouter.post('/update-all', async (req, res) => {
+    browserApi.updateProfiles()
+
+    return res.status(200).json(true)
+})
+
 // Launch profile
 profilesRouter.post('/launch', getProfileByIdFromBody, async (req, res) => {
     const { profile } = req
@@ -50,15 +62,3 @@ profilesRouter.post('/shutdown', getProfileByIdFromBody, async (req, res) => {
 
     return res.status(200).json(true)
 })
-
-// //Image
-// profilesRouter.get('/image/:id', async (req, res) => {
-//     const { id } = req.params
-//     const imagePath = join('images', id)
-
-//     if (existsSync(imagePath)) {
-//         return res.sendFile(imagePath)
-//     }
-
-//     return res.status(404).send()
-// })

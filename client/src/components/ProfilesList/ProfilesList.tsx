@@ -1,26 +1,26 @@
-import { launchAll } from '../../api/profiles'
 import {
-    Button,
-    ButtonGroup,
     Checkbox,
     CircularProgress,
     FormControlLabel,
     FormGroup,
     Grid2,
-    IconButton,
     InputAdornment,
     Stack,
     TextField,
 } from '@mui/material'
 import { Profile } from './Profile'
-import { Refresh, Search } from '@mui/icons-material'
+import { Search } from '@mui/icons-material'
 import { ProfileStatus, Profile as ProfileType } from '../../types'
 import { useMemo, useState } from 'react'
+import { ProfilesToolbar } from './ProfilesToolbar'
+import { ProfilesStats } from './ProfilesStats'
 
 interface ProfilesListProps {
     profiles: ProfileType[]
     fetchProfiles: () => void
     loading: boolean
+    profilesToolbarOpened: boolean
+    onToggleProfilesToolbar: () => void
 }
 
 export const ProfilesList = (props: ProfilesListProps) => {
@@ -33,7 +33,13 @@ export const ProfilesList = (props: ProfilesListProps) => {
         unauthorized: true,
         stopped: true,
     })
-    const { profiles, loading, fetchProfiles } = props
+    const {
+        profiles,
+        loading,
+        profilesToolbarOpened,
+        fetchProfiles,
+        onToggleProfilesToolbar,
+    } = props
 
     const filteredProfiles = useMemo(() => {
         return profiles.filter(
@@ -58,19 +64,11 @@ export const ProfilesList = (props: ProfilesListProps) => {
 
     return (
         <Stack direction={'column'} spacing={1}>
-            <ButtonGroup sx={{ maxWidth: 500 }}>
-                <Button
-                    size="small"
-                    variant="contained"
-                    color="primary"
-                    onClick={launchAll}
-                >
-                    Запустить все остановленные
-                </Button>
-                <IconButton sx={{ ml: 'auto' }} onClick={fetchProfiles}>
-                    <Refresh />
-                </IconButton>
-            </ButtonGroup>
+            <ProfilesToolbar
+                fetchProfiles={fetchProfiles}
+                profilesToolbarOpened={profilesToolbarOpened}
+                onToggleProfilesToolbar={onToggleProfilesToolbar}
+            />
             <FormGroup sx={{ flexDirection: 'row' }}>
                 <FormControlLabel
                     control={
@@ -112,8 +110,9 @@ export const ProfilesList = (props: ProfilesListProps) => {
                     label="Не авторизованные"
                 />
             </FormGroup>
+            <ProfilesStats profiles={profiles} />
             <TextField
-                sx={{ maxWidth: 500 }}
+                sx={{ maxWidth: { sm: 300 } }}
                 size="small"
                 placeholder="Название профиля"
                 value={filter}

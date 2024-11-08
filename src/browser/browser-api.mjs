@@ -20,10 +20,26 @@ class BrowserApi {
     async connect() {
         this.logger.log('Connecting started...')
 
+        this.updateProfiles()
+    }
+
+    async updateProfiles(force = false) {
+        this.logger.log('Profiles loading started...')
         const profiles = await this.#loadProfiles()
 
-        profiles.forEach(({ id, name, proxy }, idx) => {
-            this.profiles[id] = new BrowserProfile(id, name, proxy)
+        profiles.forEach(async ({ id, name, proxy }) => {
+            const profile = this.getProfileById(id)
+            if (profile) {
+                if (force) {
+                    if (profile.isConnected()) {
+                        await profile.stop()
+                    }
+
+                    this.profiles[id] = new BrowserProfile(id, name, proxy)
+                }
+            } else {
+                this.profiles[id] = new BrowserProfile(id, name, proxy)
+            }
         })
 
         this.logger.log('Profiles stored', 'success')
@@ -36,6 +52,14 @@ class BrowserApi {
 
     getProfileById(id) {
         return this.profiles[id]
+    }
+
+    async stopProfiles() {
+        this.getProfilesArray().forEach((profile) => {
+            if (profile.isConnected()) {
+                profile.stop()
+            }
+        })
     }
 
     async launchProfiles(n) {
@@ -64,26 +88,6 @@ class BrowserApi {
         } catch (e) {
             this.logger.error(e.message, 'error')
         }
-    }
-
-    async #automation(profileId) {
-        const {
-            data: { automation },
-        } = await axios(
-            `http://localhost:3001/v1.0/browser_profiles/${profileId}/start?automation=1`,
-        )
-
-        const { port, wsEndpoint } = automation
-
-        const browser = await puppeteer.connect({
-            browserWSEndpoint: `ws://127.0.0.1:${port}${wsEndpoint}`,
-        })
-
-        const page = await browser.newPage()
-        await page.goto('https://google.com')
-        await page.screenshot({ path: 'google.png' })
-
-        await browser.close()
     }
 }
 

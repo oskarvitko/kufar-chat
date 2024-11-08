@@ -82,8 +82,8 @@ export const Dialogs = (props: DialogsProps) => {
                     sx={{
                         ml: 'auto',
                         position: 'fixed',
-                        bottom: 10,
-                        right: 10,
+                        bottom: 20,
+                        right: 15,
                         zIndex: 30,
                         bgcolor: 'gray',
                     }}

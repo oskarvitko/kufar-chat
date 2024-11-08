@@ -11,3 +11,7 @@ export const launchProfile = (profileId: string) =>
 
 export const shutdownProfile = (profileId: string) =>
     api.post('profiles/shutdown', { profileId })
+
+export const shutdownAll = () => api.post('profiles/shutdown-all')
+
+export const updateAll = () => api.post('profiles/update-all')

@@ -1,7 +1,9 @@
 import {
     CircularProgress,
+    Container,
     createTheme,
     CssBaseline,
+    IconButton,
     Stack,
     Tab,
     Tabs,
@@ -21,6 +23,7 @@ import { getAllProfiles } from './api/profiles'
 import { io } from 'socket.io-client'
 import { host } from './api'
 import { Dialogs } from './components/Dialogs/Dialogs'
+import { Settings } from '@mui/icons-material'
 
 const theme = createTheme({
     palette: {
@@ -33,6 +36,10 @@ const socket = io(host)
 function App() {
     const [tab, setTab] = useState(0)
     const [applicationLoading, setApplicationLoading] = useState(true)
+    const [profilesToolbarOpened, setIsToolbarOpened] = useState(false)
+
+    const handleToggleProfilesToolbar = () =>
+        setIsToolbarOpened((prev) => !prev)
 
     const handleChange = (_: React.SyntheticEvent, newValue: number) => {
         setTab(newValue)
@@ -137,28 +144,49 @@ function App() {
                     <Typography>Подключение</Typography>
                 </Stack>
             )}
-            <Tabs
-                value={tab}
-                onChange={handleChange}
-                aria-label="basic tabs example"
-                variant="fullWidth"
-                indicatorColor="secondary"
-                textColor="inherit"
-                sx={{ maxWidth: 510 }}
-            >
-                <Tab label="Сообщения" />
-                <Tab label="Профили" />
-            </Tabs>
-            <TabPanel visible={tab === 1}>
-                <ProfilesList
-                    loading={loading}
-                    profiles={profiles}
-                    fetchProfiles={fetchProfiles}
-                />
-            </TabPanel>
-            <TabPanel visible={tab === 0}>
-                <Dialogs loading={loading} profiles={profiles} />
-            </TabPanel>
+            <Container maxWidth={'md'}>
+                <Tabs
+                    value={tab}
+                    onChange={handleChange}
+                    aria-label="basic tabs example"
+                    variant="fullWidth"
+                    indicatorColor="secondary"
+                    textColor="inherit"
+                >
+                    <Tab label="Сообщения" />
+                    <Tab
+                        label={
+                            <Stack
+                                direction="row"
+                                alignItems={'center'}
+                                spacing={1}
+                            >
+                                <Typography fontSize="14px">Профили</Typography>
+                                {!profilesToolbarOpened && tab === 1 && (
+                                    <IconButton
+                                        sx={{ p: 0 }}
+                                        onClick={handleToggleProfilesToolbar}
+                                    >
+                                        <Settings />
+                                    </IconButton>
+                                )}
+                            </Stack>
+                        }
+                    ></Tab>
+                </Tabs>
+                <TabPanel visible={tab === 1}>
+                    <ProfilesList
+                        loading={loading}
+                        profiles={profiles}
+                        fetchProfiles={fetchProfiles}
+                        profilesToolbarOpened={profilesToolbarOpened}
+                        onToggleProfilesToolbar={handleToggleProfilesToolbar}
+                    />
+                </TabPanel>
+                <TabPanel visible={tab === 0}>
+                    <Dialogs loading={loading} profiles={profiles} />
+                </TabPanel>
+            </Container>
         </ThemeProvider>
     )
 }
